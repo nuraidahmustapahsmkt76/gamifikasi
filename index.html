@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Makmal Masa Maya - Sains Tahun 1 (SK 3.1)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #0f172a;
+            margin: 0;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        h1, h2, h3, .game-font {
+            font-family: 'Fredoka', sans-serif;
+        }
+        /* Arcade button styling */
+        .btn-arcade {
+            transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35), inset 0 2px 0 rgba(255, 255, 255, 0.4);
+        }
+        .btn-arcade:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 1rem;
+        }
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+        .float-anim {
+            animation: floatSlow 2.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-between p-2 sm:p-4 bg-gradient-to-b from-sky-900 via-indigo-950 to-slate-900 text-white">
+
+    <header class="w-full max-w-5xl flex flex-wrap items-center justify-between gap-2 bg-slate-800/90 border-2 border-sky-400/40 rounded-2xl px-3 py-2 shadow-lg z-10">
+        <!-- Hearts & Character Badge -->
+        <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-pink-500 border-2 border-white flex items-center justify-center shadow-inner text-2xl">
+                👧🏻
+            </div>
+            <div>
+                <div class="flex items-center gap-1" id="hearts-container">
+                    <!-- Populated by JS -->
+                </div>
+                <p class="text-xs text-sky-200 font-bold tracking-wide" id="carry-status">Tangan Kosong (Cari Benda Hidup!)</p>
+            </div>
+        </div>
+
+        <!-- Stage & Phase Title -->
+        <div class="text-center flex-1 min-w-[180px]">
+            <div class="inline-block bg-amber-400 text-slate-900 font-extrabold text-xs px-3 py-0.5 rounded-full uppercase tracking-wider shadow" id="stage-badge">
+                TAHAP 1: KORIDOR SEKOLAH
+            </div>
+            <h1 class="text-sm sm:text-base font-bold text-white mt-0.5 truncate" id="mission-text">
+                Fasa 1: Bawa Anak Kucing ke Mesin Masa! Elak Kipas!
+            </h1>
+        </div>
+
+        <!-- Score & Teacher Analytics Button -->
+        <div class="flex items-center gap-2">
+            <div class="bg-slate-900/90 border border-amber-400/50 rounded-xl px-3 py-1 text-center">
+                <span class="text-xs text-amber-300 block leading-none">Bintang Sains</span>
+                <span class="text-lg font-extrabold text-amber-400 game-font" id="score-display">⭐ 0</span>
+            </div>
+            <button id="btn-sound" onclick="toggleSound()" class="btn-arcade bg-sky-600 hover:bg-sky-500 text-white p-2.5 rounded-xl border border-sky-300" title="Bunyi">
+                🔊
+            </button>
+            <button onclick="openTeacherModal()" class="btn-arcade bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl border border-emerald-300 text-xs sm:text-sm font-bold flex items-center gap-1">
+                <span>📋</span> <span class="hidden sm:inline">Rekod Guru</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="relative w-full max-w-5xl flex-1 my-2 rounded-2xl overflow-hidden border-4 border-sky-300/60 shadow-2xl bg-sky-200">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Dynamic Speech / Feedback Bubble Overlay -->
+        <div id="maya-dialog" class="hidden absolute top-3 left-1/2 -translate-x-1/2 w-[92%] max-w-xl bg-white text-slate-800 border-4 border-pink-500 rounded-2xl p-3 shadow-2xl z-20 transition-all">
+            <div class="flex items-start gap-3">
+                <div class="text-3xl bg-pink-100 p-2 rounded-xl border border-pink-300 shrink-0" id="dialog-icon">🔎</div>
+                <div class="flex-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-extrabold text-pink-600 text-xs uppercase tracking-wider" id="dialog-title">Kata Maya (Saintis Cilik)</span>
+                        <span class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">SP 3.1.1</span>
+                    </div>
+                    <p class="text-sm sm:text-base font-bold text-slate-800 mt-0.5 leading-snug" id="dialog-body">
+                        Kipas memang bergerak berpusing, tetapi kipas TIDAK bernafas dan TIDAK membesar!
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 2 Checklist HUD (Visible inside Time Machine Phase) -->
+        <div id="traits-hud" class="hidden absolute top-3 right-3 bg-slate-900/90 border-2 border-amber-400 rounded-2xl p-2.5 text-white shadow-xl z-10 max-w-[230px]">
+            <p class="text-xs font-extrabold text-amber-300 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                <span>⚡</span> Enjin 5 Ciri Hidup (SP 3.1.1)
+            </p>
+            <div id="traits-checklist" class="space-y-1 text-xs font-bold">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+
+        <!-- Start / Welcome Screen Modal -->
+        <div id="start-overlay" class="absolute inset-0 bg-slate-900/85 backdrop-blur-sm flex items-center justify-center p-4 z-30">
+            <div class="bg-white text-slate-800 rounded-3xl max-w-lg w-full p-6 border-4 border-sky-400 shadow-2xl text-center">
+                <div class="inline-flex items-center gap-2 bg-pink-100 text-pink-700 font-extrabold text-xs px-3 py-1 rounded-full mb-2">
+                    <span>SAINS TAHUN 1 • SK 3.1 & SP 3.1.1</span>
+                </div>
+                <div class="text-6xl my-2 float-anim">👧🏻🔎🌱🐈</div>
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 game-font">Makmal Masa Maya</h2>
+                <p class="text-sm text-slate-600 mt-2 leading-relaxed font-semibold">
+                    Bantu <strong>Maya</strong> mengelaskan <strong>Benda Hidup</strong> (Manusia, Haiwan, Tumbuhan) di sekitar sekolah dan mengaktifkan <strong>Mesin Masa</strong>!
+                </p>
+
+                <div class="bg-sky-50 border-2 border-sky-200 rounded-2xl p-3 my-4 text-left text-xs sm:text-sm space-y-2">
+                    <div class="flex items-start gap-2">
+                        <span class="text-lg">1️⃣</span>
+                        <p><strong>Fasa 1 (Kumpul & Elak):</strong> Ambil <strong>Benda Hidup</strong> sahaja! Elakkan perangkap bergerak/membesar palsu seperti <em>Kipas, Kereta, & Belon</em>.</p>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="text-lg">2️⃣</span>
+                        <p><strong>Fasa 2 (Enjin Ciri Hidup):</strong> Lompat kutip gelembung <strong>5 Ciri Benda Hidup</strong> (Bernafas, Air & Makanan, Bergerak, Membesar, Membiak).</p>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="text-lg">3️⃣</span>
+                        <p><strong>Fasa 3 (Transformasi Masa):</strong> Perhatikan benda hidup membesar & membiak menjadi jambatan ke pintu tahap baharu!</p>
+                    </div>
+                </div>
+
+                <button onclick="startGame()" class="btn-arcade w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white font-extrabold text-lg py-3.5 rounded-2xl border-2 border-pink-200 game-font tracking-wide">
+                    🚀 MULA MISI SAINS!
+                </button>
+            </div>
+        </div>
+
+        <!-- Stage Transition / Victory Modal -->
+        <div id="stage-clear-overlay" class="hidden absolute inset-0 bg-slate-900/85 backdrop-blur-sm flex items-center justify-center p-4 z-30">
+            <div class="bg-white text-slate-800 rounded-3xl max-w-lg w-full p-6 border-4 border-amber-400 shadow-2xl text-center">
+                <div class="text-5xl mb-2" id="clear-emoji">🎉🐈</div>
+                <h2 class="text-2xl font-extrabold text-emerald-600 game-font" id="clear-title">Tahap 1 Berjaya!</h2>
+                <p class="text-sm font-bold text-slate-700 mt-2 leading-relaxed" id="clear-desc"></p>
+                
+                <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-3 my-4 text-left text-xs space-y-1" id="clear-summary">
+                    <!-- Populated by JS -->
+                </div>
+
+                <button id="btn-next-stage" onclick="nextStage()" class="btn-arcade w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold text-lg py-3 rounded-2xl border-2 border-emerald-200 game-font">
+                    TERUSKAN KE TAHAP SETERUSNYA ➡️
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="w-full max-w-5xl flex items-center justify-between gap-3 px-2 py-1 z-10">
+        <!-- Left/Right Directional Controls -->
+        <div class="flex items-center gap-2 sm:gap-3">
+            <button id="btn-left" class="btn-arcade bg-gradient-to-b from-sky-400 to-sky-600 active:from-sky-500 active:to-sky-700 text-white font-extrabold px-5 py-3 sm:px-7 sm:py-3.5 rounded-2xl border-2 border-sky-200 text-lg sm:text-xl flex items-center gap-1 select-none">
+                <span>⬅️</span> <span class="text-xs sm:text-sm hidden md:inline">Kiri</span>
+            </button>
+            <button id="btn-right" class="btn-arcade bg-gradient-to-b from-sky-400 to-sky-600 active:from-sky-500 active:to-sky-700 text-white font-extrabold px-5 py-3 sm:px-7 sm:py-3.5 rounded-2xl border-2 border-sky-200 text-lg sm:text-xl flex items-center gap-1 select-none">
+                <span class="text-xs sm:text-sm hidden md:inline">Kanan</span> <span>➡️</span>
+            </button>
+        </div>
+
+        <!-- Stage Selector Pills for Quick Classroom Demo -->
+        <div class="hidden sm:flex items-center gap-1.5 bg-slate-800/90 px-3 py-1.5 rounded-2xl border border-slate-600">
+            <span class="text-xs text-slate-300 font-bold mr-1">Pilih Tahap:</span>
+            <button onclick="loadStage(0)" id="pill-0" class="px-2.5 py-1 rounded-xl text-xs font-extrabold bg-amber-400 text-slate-900">1: Haiwan vs Kipas</button>
+            <button onclick="loadStage(1)" id="pill-1" class="px-2.5 py-1 rounded-xl text-xs font-extrabold bg-slate-700 text-slate-200 hover:bg-slate-600">2: Pokok vs Kereta</button>
+            <button onclick="loadStage(2)" id="pill-2" class="px-2.5 py-1 rounded-xl text-xs font-extrabold bg-slate-700 text-slate-200 hover:bg-slate-600">3: Pokok vs Belon</button>
+        </div>
+
+        <!-- Jump & Action Buttons -->
+        <div class="flex items-center gap-2 sm:gap-3">
+            <button id="btn-drop" onclick="dropCarriedItem()" class="btn-arcade bg-gradient-to-b from-amber-400 to-amber-600 text-slate-900 font-extrabold px-3 py-3 sm:px-4 sm:py-3.5 rounded-2xl border-2 border-amber-200 text-xs sm:text-sm select-none">
+                🔄 Lepas Objek
+            </button>
+            <button id="btn-jump" class="btn-arcade bg-gradient-to-b from-pink-500 to-rose-600 active:from-pink-600 active:to-rose-700 text-white font-extrabold px-6 py-3 sm:px-8 sm:py-3.5 rounded-2xl border-2 border-pink-200 text-base sm:text-lg flex items-center gap-1.5 select-none game-font">
+                <span>⬆️</span> <span>LOMPAT</span>
+            </button>
+        </div>
+    </footer>
+
+    <div id="teacher-modal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white text-slate-800 rounded-3xl max-w-2xl w-full p-5 sm:p-6 border-4 border-emerald-500 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b pb-3">
+                <div>
+                    <span class="text-xs font-extrabold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">PENTAKSIRAN BILIK DARJAH (PBD)</span>
+                    <h3 class="text-xl font-extrabold text-slate-900 game-font mt-1">Laporan Bukti Pembelajaran Murid (SK 3.1 / SP 3.1.1)</h3>
+                </div>
+                <button onclick="closeTeacherModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold w-9 h-9 rounded-full">✕</button>
+            </div>
+
+            <!-- Summary Metrics -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 my-4">
+                <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl text-center">
+                    <span class="text-xs text-emerald-700 font-bold block">Benda Hidup Betul</span>
+                    <span class="text-2xl font-extrabold text-emerald-600 game-font" id="stat-correct-obj">0</span>
+                </div>
+                <div class="bg-rose-50 border border-rose-200 p-3 rounded-2xl text-center">
+                    <span class="text-xs text-rose-700 font-bold block">Perangkap Disentuh</span>
+                    <span class="text-2xl font-extrabold text-rose-600 game-font" id="stat-trap-obj">0</span>
+                </div>
+                <div class="bg-sky-50 border border-sky-200 p-3 rounded-2xl text-center">
+                    <span class="text-xs text-sky-700 font-bold block">Ciri Hidup Tepat</span>
+                    <span class="text-2xl font-extrabold text-sky-600 game-font" id="stat-correct-trait">0</span>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 p-3 rounded-2xl text-center">
+                    <span class="text-xs text-amber-800 font-bold block">Cadangan TP DSKP</span>
+                    <span class="text-xl font-extrabold text-amber-600 game-font" id="stat-tp">TP 1</span>
+                </div>
+            </div>
+
+            <!-- Detailed Log of Misconceptions & Evidence -->
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-4">
+                <h4 class="text-xs font-extrabold uppercase text-slate-500 tracking-wider mb-2">Analisis Tindakan Murid Mengikut Miskonsepsi DSKP:</h4>
+                <ul id="evidence-log" class="space-y-1.5 text-xs sm:text-sm font-semibold text-slate-700 max-h-44 overflow-y-auto">
+                    <li class="text-slate-400 italic">Belum ada tindakan direkodkan. Sila mulakan permainan.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Stage Switcher for Teacher -->
+            <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-100 p-3 rounded-2xl">
+                <div class="text-xs font-bold text-slate-600">Lompat ke Tahap (Untuk Demonstrasi Guru):</div>
+                <div class="flex gap-2">
+                    <button onclick="loadStage(0); closeTeacherModal();" class="px-3 py-1.5 bg-sky-600 text-white rounded-xl text-xs font-bold">Tahap 1 (Kipas)</button>
+                    <button onclick="loadStage(1); closeTeacherModal();" class="px-3 py-1.5 bg-sky-600 text-white rounded-xl text-xs font-bold">Tahap 2 (Kereta)</button>
+                    <button onclick="loadStage(2); closeTeacherModal();" class="px-3 py-1.5 bg-sky-600 text-white rounded-xl text-xs font-bold">Tahap 3 (Belon)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* =========================================================================
+           1. WEB AUDIO SYNTHESIZER (TIADA FAIL LUAR DIPERLUKAN)
+           ========================================================================= */
+        let soundEnabled = true;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('btn-sound').innerText = soundEnabled ? '🔊' : '🔇';
+        }
+
+        function playSfx(type) {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'jump') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(280, now);
+                    osc.frequency.exponentialRampToValueAtTime(580, now + 0.14);
+                    gain.gain.setValueAtTime(0.18, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'pickup') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.setValueAtTime(659.25, now + 0.07); // E5
+                    osc.frequency.setValueAtTime(783.99, now + 0.14); // G5
+                    gain.gain.setValueAtTime(0.22, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'wrong') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(210, now);
+                    osc.frequency.linearRampToValueAtTime(110, now + 0.28);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'transform') {
+                    osc.type = 'sine';
+                    const notes = [440, 554, 659, 880, 1046];
+                    notes.forEach((freq, idx) => {
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                    });
+                    gain.gain.setValueAtTime(0.22, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                }
+            } catch (e) {
+                // Ignore audio errors on restricted devices
+            }
+        }
+
+        /* =========================================================================
+           2. REKOD BUKTI PEMBELAJARAN GURU (DATA ANALITIK PBD)
+           ========================================================================= */
+        const learningAnalytics = {
+            correctObjectsPicked: 0,
+            trapObjectsTouched: 0,
+            correctTraitsCollected: 0,
+            wrongTraitsCollected: 0,
+            stagesCompleted: [false, false, false],
+            logs: []
+        };
+
+        function recordEvidence(isPositive, text) {
+            const timeStr = new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            learningAnalytics.logs.unshift({ isPositive, text, timeStr });
+            updateTeacherModalUI();
+        }
+
+        function updateTeacherModalUI() {
+            document.getElementById('stat-correct-obj').innerText = learningAnalytics.correctObjectsPicked;
+            document.getElementById('stat-trap-obj').innerText = learningAnalytics.trapObjectsTouched + learningAnalytics.wrongTraitsCollected;
+            document.getElementById('stat-correct-trait').innerText = learningAnalytics.correctTraitsCollected;
+
+            const completedCount = learningAnalytics.stagesCompleted.filter(Boolean).length;
+            let tp = 'TP 1';
+            if (completedCount === 1) tp = 'TP 2';
+            else if (completedCount === 2) tp = 'TP 3';
+            else if (completedCount === 3 && (learningAnalytics.trapObjectsTouched + learningAnalytics.wrongTraitsCollected) <= 2) tp = 'TP 5 / TP 6';
+            else if (completedCount === 3) tp = 'TP 4';
+            document.getElementById('stat-tp').innerText = tp;
+
+            const logContainer = document.getElementById('evidence-log');
+            if (learningAnalytics.logs.length === 0) return;
+            logContainer.innerHTML = learningAnalytics.logs.slice(0, 18).map(item => `
+                <li class="flex items-start gap-2 p-1.5 rounded-lg ${item.isPositive ? 'bg-emerald-50 text-emerald-900' : 'bg-rose-50 text-rose-900'}">
+                    <span>${item.isPositive ? '✅' : '⚠️'}</span>
+                    <span class="flex-1">${item.text}</span>
+                    <span class="text-[10px] opacity-60 shrink-0">${item.timeStr}</span>
+                </li>
+            `).join('');
+        }
+
+        function openTeacherModal() {
+            updateTeacherModalUI();
+            document.getElementById('teacher-modal').classList.remove('hidden');
+        }
+        function closeTeacherModal() {
+            document.getElementById('teacher-modal').classList.add('hidden');
+        }
+
+        /* =========================================================================
+           3. KANDUNGAN 3 TAHAP MENGIKUT DSKP SAINS TAHUN 1 (SK 3.1 & SP 3.1.1)
+           ========================================================================= */
+        const STAGES = [
+            {
+                id: 1,
+                name: "TAHAP 1: KORIDOR & BILIK DARJAH",
+                themeTop: "#bae6fd",
+                themeBottom: "#e0f2fe",
+                floorColor: "#94a3b8",
+                missionPhase1: "Fasa 1: Ambil Benda Hidup (Anak Kucing 🐈) & hantar ke Mesin Masa! Elak Kipas!",
+                missionPhase2: "Fasa 2: Lompat kutip Ciri Benda Hidup untuk membesarkan Anak Kucing!",
+                missionPhase3: "Fasa 3: Anak Kucing dah membesar & membiak! Panjat pelantar ke Pintu Tahap 2!",
+                targetLiving: {
+                    name: "Anak Kucing",
+                    category: "Haiwan (Benda Hidup)",
+                    emoji: "🐈",
+                    grownEmoji: "🐈🐈‍⬛🐈",
+                    grownLabel: "Kucing Dewasa & Anak-anak Kucing",
+                    x: 420,
+                    y: 360
+                },
+                traps: [
+                    {
+                        name: "Kipas Berpusing",
+                        emoji: "🪭",
+                        x: 260,
+                        y: 365,
+                        vx: 1.3,
+                        minX: 200,
+                        maxX: 350,
+                        reason: "Kipas memang BERGERAK berpusing, tetapi kipas TIDAK bernafas, TIDAK makan, TIDAK membesar dan TIDAK membiak! (Nota DSKP m/s 36)"
+                    },
+                    {
+                        name: "Kerusi Sekolah",
+                        emoji: "🪑",
+                        x: 560,
+                        y: 365,
+                        vx: 0,
+                        minX: 560,
+                        maxX: 560,
+                        reason: "Kerusi ialah benda bukan hidup. Kerusi tiada kesemua 5 ciri benda hidup."
+                    }
+                ],
+                requiredTraits: [
+                    { id: "nafas", label: "Bernafas", emoji: "🌬️" },
+                    { id: "makan", label: "Perlu Air & Makanan", emoji: "💧🐟" },
+                    { id: "besar", label: "Membesar & Membiak", emoji: "📈" }
+                ],
+                trapTraits: [
+                    { id: "bateri", label: "Suis Elektrik", emoji: "🔌", reason: "Suis elektrik untuk menghidupkan kipas, bukan untuk kucing!" }
+                ],
+                clearSummary: "Murid berjaya membezakan Haiwan (Kucing) serta Manusia (Maya) daripada Kipas yang bergerak. Kucing bernafas, memerlukan air & makanan, bergerak, membesar, dan membiak."
+            },
+            {
+                id: 2,
+                name: "TAHAP 2: PADANG & LALUAN SEKOLAH",
+                themeTop: "#7dd3fc",
+                themeBottom: "#dcfce7",
+                floorColor: "#4ade80",
+                missionPhase1: "Fasa 1: Ambil Anak Pokok Bunga 🌱 & bawa ke Mesin Masa! Elak Kereta Bergerak!",
+                missionPhase2: "Fasa 2: Kutip 4 Ciri Benda Hidup untuk membuktikan Tumbuhan ialah Benda Hidup!",
+                missionPhase3: "Fasa 3: Pokok tumbuh tinggi & bergerak ke arah cahaya! Panjat dahan ke Pintu Tahap 3!",
+                targetLiving: {
+                    name: "Anak Pokok Bunga",
+                    category: "Tumbuhan (Benda Hidup)",
+                    emoji: "🌱",
+                    grownEmoji: "🌳🌻",
+                    grownLabel: "Pokok Tinggi Berbunga",
+                    x: 470,
+                    y: 260 // Atas platform tengah
+                },
+                traps: [
+                    {
+                        name: "Kereta Bergerak",
+                        emoji: "🚗",
+                        x: 310,
+                        y: 365,
+                        vx: 2.2,
+                        minX: 190,
+                        maxX: 580,
+                        reason: "Kereta boleh BERGERAK laju, tetapi kereta bukan benda hidup! Kereta tidak bernafas, tidak membesar dan tidak membiak! (Nota DSKP m/s 36)"
+                    },
+                    {
+                        name: "Bola Sepak",
+                        emoji: "⚽",
+                        x: 540,
+                        y: 365,
+                        vx: -1.6,
+                        minX: 400,
+                        maxX: 620,
+                        reason: "Bola bergolek apabila ditendang, tetapi bola tidak bernafas dan tidak memerlukan air serta makanan."
+                    }
+                ],
+                requiredTraits: [
+                    { id: "nafas", label: "Bernafas", emoji: "🌬️" },
+                    { id: "makan", label: "Perlu Air & Makanan", emoji: "💧🍎" },
+                    { id: "gerak", label: "Bergerak (Akar/Pucuk)", emoji: "🌿" },
+                    { id: "besar", label: "Membesar", emoji: "📈" }
+                ],
+                trapTraits: [
+                    { id: "petrol", label: "Minyak Petrol", emoji: "⛽", reason: "Minyak petrol untuk kereta bergerak, bukannya makanan untuk anak pokok!" },
+                    { id: "bateri", label: "Bateri", emoji: "🔋", reason: "Pokok ialah benda hidup! Pokok perlukan air dan makanan, bukan bateri!" }
+                ],
+                clearSummary: "Murid mengatasi miskonsepsi utama: Walaupun Anak Pokok kelihatan kaku dan Kereta bergerak laju, Anak Pokok ialah benda hidup kerana ia bernafas, memerlukan air & makanan, bergerak perlahan, membesar, dan membiak."
+            },
+            {
+                id: 3,
+                name: "TAHAP 3: TAMAN SAINS SEKOLAH",
+                themeTop: "#fef08a",
+                themeBottom: "#bbf7d0",
+                floorColor: "#22c55e",
+                missionPhase1: "Fasa 1: Cari Anak Pokok Betik 🪴 yang tulen! Elak Belon Ditiup & Bunga Plastik!",
+                missionPhase2: "Fasa 2: Lengkapkan KESEMUA 5 Ciri SP 3.1.1 pada Mesin Masa!",
+                missionPhase3: "Fasa 3: Pokok Betik membesar & membiak (berbuah)! Panjat ambil Trofi Saintis!",
+                targetLiving: {
+                    name: "Anak Pokok Betik",
+                    category: "Tumbuhan (Benda Hidup)",
+                    emoji: "🪴",
+                    grownEmoji: "🌴🍈🌱",
+                    grownLabel: "Pokok Betik Berbuah & Anak Pokok Baharu",
+                    x: 360,
+                    y: 195 // Atas platform tinggi
+                },
+                traps: [
+                    {
+                        name: "Belon Ditiup",
+                        emoji: "🎈",
+                        x: 250,
+                        y: 280,
+                        vx: 1.5,
+                        minX: 180,
+                        maxX: 480,
+                        isBalloon: true,
+                        reason: "Belon yang ditiup memang MEMBESAR, tetapi belon BUKAN benda hidup! Belon tidak bernafas, tidak perlukan makanan dan tidak membiak! (Nota DSKP m/s 36)"
+                    },
+                    {
+                        name: "Pokok Bunga Plastik",
+                        emoji: "💐",
+                        x: 530,
+                        y: 365,
+                        vx: 0,
+                        minX: 530,
+                        maxX: 530,
+                        reason: "Hati-hati! Bunga plastik nampak cantik tetapi ia benda bukan hidup—ia tidak bernafas, tidak minum air dan tidak boleh membesar!"
+                    }
+                ],
+                requiredTraits: [
+                    { id: "nafas", label: "1. Bernafas", emoji: "🌬️" },
+                    { id: "makan", label: "2. Perlu Air & Makanan", emoji: "💧🍎" },
+                    { id: "gerak", label: "3. Bergerak", emoji: "🌱" },
+                    { id: "besar", label: "4. Membesar", emoji: "📈" },
+                    { id: "biak", label: "5. Membiak (Biji Benih)", emoji: "🌰" }
+                ],
+                trapTraits: [
+                    { id: "pam", label: "Pam Angin Belon", emoji: "💨", reason: "Pam angin hanya untuk membesarkan belon! Pokok membesar kerana makan dan minum air!" },
+                    { id: "bateri", label: "Bateri Mainan", emoji: "🔋", reason: "Benda hidup tidak menggunakan bateri untuk bergerak atau membesar!" }
+                ],
+                clearSummary: "Syabas! Murid menguasai keseluruhan SP 3.1.1: Membanding dan membezakan benda hidup (Manusia, Haiwan, Tumbuhan) dengan benda bukan hidup (Kipas, Kereta, Belon yang ditiup) berdasarkan 5 ciri: bernafas, memerlukan air & makanan, bergerak, membesar, dan membiak."
+            }
+        ];
+
+        /* =========================================================================
+           4. PEMBOLEH UBAH KEADAAN PERMAINAN (GAME STATE & PHYSICS)
+           ========================================================================= */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Logical resolution for consistent physics across all screens
+        const WORLD_W = 900;
+        const WORLD_H = 440;
+        const GROUND_Y = 395;
+
+        let currentStageIdx = 0;
+        let phase = 1; // 1: Collect Living Object, 2: Collect SP 3.1.1 Traits, 3: Climb Grown Bridge to Exit Door
+        let score = 0;
+        let lives = 5;
+        let animTick = 0;
+        let dialogTimeout = null;
+
+        const maya = {
+            x: 70,
+            y: GROUND_Y - 56,
+            w: 44,
+            h: 56,
+            vx: 0,
+            vy: 0,
+            speed: 4.5,
+            jumpForce: -11.8,
+            onGround: false,
+            facing: 1,
+            carrying: null,
+            invulnerableTimer: 0
+        };
+
+        const keys = { left: false, right: false };
+
+        let platforms = [];
+        let stageObjects = [];
+        let traitBubbles = [];
+        let particles = [];
+
+        const timeMachine = {
+            x: 685,
+            y: GROUND_Y - 115,
+            w: 95,
+            h: 115,
+            loadedObject: null,
+            transformed: false
+        };
+
+        const exitDoor = {
+            x: 815,
+            y: 95,
+            w: 58,
+            h: 75
+        };
+
+        /* =========================================================================
+           5. FUNGSI KAWALAN TAHAP & ANTARA MUKA (UI HELPERS)
+           ========================================================================= */
+        function renderHearts() {
+            const container = document.getElementById('hearts-container');
+            let html = '';
+            for (let i = 0; i < 5; i++) {
+                html += `<span class="text-base sm:text-lg transition-transform ${i < lives ? 'scale-100' : 'opacity-25 grayscale'}">❤️</span>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function showMayaDialog(title, message, icon = "🔎", isPositive = true, duration = 4500) {
+            const box = document.getElementById('maya-dialog');
+            document.getElementById('dialog-title').innerText = title;
+            document.getElementById('dialog-body').innerText = message;
+            document.getElementById('dialog-icon').innerText = icon;
+            box.className = `absolute top-3 left-1/2 -translate-x-1/2 w-[92%] max-w-xl bg-white text-slate-800 border-4 ${isPositive ? 'border-emerald-500' : 'border-rose-500'} rounded-2xl p-3 shadow-2xl z-20 transition-all`;
+            box.classList.remove('hidden');
+
+            if (dialogTimeout) clearTimeout(dialogTimeout);
+            dialogTimeout = setTimeout(() => {
+                box.classList.add('hidden');
+            }, duration);
+        }
+
+        function spawnParticles(x, y, color, count = 14) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x,
+                    y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.8) * 6,
+                    size: 4 + Math.random() * 5,
+                    color,
+                    life: 30 + Math.random() * 20
+                });
+            }
+        }
+
+        function updateStagePills() {
+            [0, 1, 2].forEach(idx => {
+                const pill = document.getElementById(`pill-${idx}`);
+                if (!pill) return;
+                if (idx === currentStageIdx) {
+                    pill.className = "px-2.5 py-1 rounded-xl text-xs font-extrabold bg-amber-400 text-slate-900 shadow";
+                } else {
+                    pill.className = "px-2.5 py-1 rounded-xl text-xs font-extrabold bg-slate-700 text-slate-200 hover:bg-slate-600";
+                }
+            });
+        }
+
+        function loadStage(idx) {
+            currentStageIdx = idx;
+            const st = STAGES[idx];
+            phase = 1;
+            maya.x = 65;
+            maya.y = GROUND_Y - maya.h;
+            maya.vx = 0;
+            maya.vy = 0;
+            maya.carrying = null;
+            timeMachine.loadedObject = null;
+            timeMachine.transformed = false;
+            traitBubbles = [];
+
+            // Setup stage platforms
+            if (idx === 0) {
+                platforms = [
+                    { x: 180, y: 300, w: 120, h: 16, label: "" },
+                    { x: 370, y: 270, w: 130, h: 16, label: "" }
+                ];
+            } else if (idx === 1) {
+                platforms = [
+                    { x: 170, y: 305, w: 110, h: 16, label: "" },
+                    { x: 410, y: 280, w: 135, h: 16, label: "Taman Sekolah" }
+                ];
+            } else {
+                platforms = [
+                    { x: 150, y: 310, w: 115, h: 16, label: "" },
+                    { x: 310, y: 215, w: 135, h: 16, label: "Rak Pasu" }
+                ];
+            }
+
+            // Setup target & traps
+            stageObjects = [
+                {
+                    type: 'living',
+                    name: st.targetLiving.name,
+                    category: st.targetLiving.category,
+                    emoji: st.targetLiving.emoji,
+                    x: st.targetLiving.x,
+                    y: st.targetLiving.y,
+                    w: 44,
+                    h: 44,
+                    vx: 0,
+                    collected: false
+                },
+                ...st.traps.map(t => ({
+                    type: 'trap',
+                    name: t.name,
+                    emoji: t.emoji,
+                    x: t.x,
+                    y: t.y,
+                    w: 46,
+                    h: 46,
+                    vx: t.vx,
+                    minX: t.minX,
+                    maxX: t.maxX,
+                    isBalloon: !!t.isBalloon,
+                    reason: t.reason
+                }))
+            ];
+
+            // Update UI headers
+            document.getElementById('stage-badge').innerText = st.name;
+            document.getElementById('mission-text').innerText = st.missionPhase1;
+            document.getElementById('carry-status').innerText = "Tangan Kosong (Cari Benda Hidup!)";
+            document.getElementById('traits-hud').classList.add('hidden');
+            updateStagePills();
+            renderHearts();
+
+            showMayaDialog(
+                st.name,
+                `Hai kawan-kawan! Maya ialah MANUSIA (benda hidup). Jom bantu Maya cari ${st.targetLiving.name} dan elakkan objek bukan hidup!`,
+                "👧🏻",
+                true,
+                4200
+            );
+        }
+
+        function startPhase2() {
+            phase = 2;
+            const st = STAGES[currentStageIdx];
+            document.getElementById('mission-text').innerText = st.missionPhase2;
+            document.getElementById('traits-hud').classList.remove('hidden');
+
+            // Create floating trait bubbles around the lab
+            traitBubbles = [];
+            const allTraits = [
+                ...st.requiredTraits.map(t => ({ ...t, isCorrect: true, collected: false })),
+                ...st.trapTraits.map(t => ({ ...t, isCorrect: false, collected: false }))
+            ];
+
+            const positions = [
+                { x: 160, y: 220 },
+                { x: 280, y: 175 },
+                { x: 400, y: 210 },
+                { x: 520, y: 170 },
+                { x: 615, y: 225 },
+                { x: 230, y: 295 },
+                { x: 480, y: 295 }
+            ];
+
+            allTraits.forEach((tr, i) => {
+                const pos = positions[i % positions.length];
+                traitBubbles.push({
+                    ...tr,
+                    x: pos.x,
+                    y: pos.y,
+                    baseY: pos.y,
+                    r: 28,
+                    phaseOffset: i * 1.1
+                });
+            });
+
+            updateTraitsChecklistUI();
+            showMayaDialog(
+                "Fasa 2: Aktifkan Mesin Masa (SP 3.1.1)",
+                `Bagus! ${st.targetLiving.name} sudah di dalam Mesin Masa. Sekarang lompat kutip kesemua Gelembung Ciri Benda Hidup yang betul!`,
+                "⚡",
+                true,
+                4500
+            );
+        }
+
+        function updateTraitsChecklistUI() {
+            const list = document.getElementById('traits-checklist');
+            const correctOnes = traitBubbles.filter(b => b.isCorrect);
+            list.innerHTML = correctOnes.map(b => `
+                <div class="flex items-center justify-between px-2 py-1 rounded-lg ${b.collected ? 'bg-emerald-600/80 text-white' : 'bg-slate-800 text-slate-300'}">
+                    <span>${b.emoji} ${b.label}</span>
+                    <span>${b.collected ? '✅' : '⬜'}</span>
+                </div>
+            `).join('');
+        }
+
+        function startPhase3() {
+            phase = 3;
+            timeMachine.transformed = true;
+            const st = STAGES[currentStageIdx];
+            document.getElementById('mission-text').innerText = st.missionPhase3;
+            playSfx('transform');
+            spawnParticles(timeMachine.x + 45, timeMachine.y + 50, '#facc15', 30);
+
+            // Add grown bridge platforms leading up to the high exit door
+            platforms.push(
+                { x: 560, y: 295, w: 115, h: 16, label: "Dahan/Tangga 1", isGrownBridge: true },
+                { x: 655, y: 225, w: 115, h: 16, label: "Dahan/Tangga 2", isGrownBridge: true },
+                { x: 755, y: 170, w: 130, h: 16, label: "Puncak Tahap", isGrownBridge: true }
+            );
+
+            showMayaDialog(
+                "Transformasi Masa Berjaya!",
+                `Lihat! ${st.targetLiving.name} telah MEMBESAR dan MEMBIAK menjadi ${st.targetLiving.grownLabel}! Panjat jambatan baharu di sebelah kanan ke Pintu Tahap!`,
+                "🌟",
+                true,
+                5500
+            );
+        }
+
+        function completeCurrentStage() {
+            playSfx('transform');
+            learningAnalytics.stagesCompleted[currentStageIdx] = true;
+            score += 50;
+            document.getElementById('score-display').innerText = `⭐ ${score}`;
+
+            const st = STAGES[currentStageIdx];
+            recordEvidence(true, `Menamatkan ${st.name} dengan membuktikan kesemua ciri SP 3.1.1 bagi ${st.targetLiving.name}.`);
+
+            const modal = document.getElementById('stage-clear-overlay');
+            document.getElementById('clear-emoji').innerText = st.targetLiving.grownEmoji;
+            document.getElementById('clear-title').innerText = `${st.name} Selesai!`;
+            document.getElementById('clear-desc').innerText = st.clearSummary;
+
+            document.getElementById('clear-summary').innerHTML = `
+                <p class="font-extrabold text-emerald-800 mb-1">📌 Rumusan Sains Tahun 1 (SP 3.1.1):</p>
+                <p>• <strong>Benda Hidup (${st.targetLiving.name} & Manusia):</strong> Bernafas, memerlukan air & makanan, bergerak, membesar, dan membiak.</p>
+                <p>• <strong>Benda Bukan Hidup:</strong> Walaupun <em>kipas/kereta bergerak</em> atau <em>belon membesar bila ditiup</em>, ia tidak mempunyai kesemua 5 ciri hidup.</p>
+            `;
+
+            const nextBtn = document.getElementById('btn-next-stage');
+            if (currentStageIdx < STAGES.length - 1) {
+                nextBtn.innerText = `TERUSKAN KE TAHAP ${currentStageIdx + 2} ➡️`;
+            } else {
+                nextBtn.innerText = `🏆 LIHAT REKOD SAINTIS CILIK & MAIN SEMULA`;
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function nextStage() {
+            document.getElementById('stage-clear-overlay').classList.add('hidden');
+            if (currentStageIdx < STAGES.length - 1) {
+                loadStage(currentStageIdx + 1);
+            } else {
+                openTeacherModal();
+                loadStage(0);
+            }
+        }
+
+        function startGame() {
+            initAudio();
+            document.getElementById('start-overlay').classList.add('hidden');
+            loadStage(0);
+        }
+
+        function dropCarriedItem() {
+            if (maya.carrying) {
+                maya.carrying.collected = false;
+                maya.carrying.x = Math.max(40, Math.min(WORLD_W - 100, maya.x + maya.facing * 55));
+                maya.carrying.y = GROUND_Y - maya.carrying.h;
+                maya.carrying = null;
+                document.getElementById('carry-status').innerText = "Tangan Kosong (Cari Benda Hidup!)";
+            }
+        }
+
+        /* =========================================================================
+           6. LOGIK FIZIK & PERLANGGARAN (UPDATE LOOP)
+           ========================================================================= */
+        function triggerJump() {
+            if (maya.onGround) {
+                maya.vy = maya.jumpForce;
+                maya.onGround = false;
+                playSfx('jump');
+            }
+        }
+
+        function rectsOverlap(a, b) {
+            return (
+                a.x < b.x + b.w &&
+                a.x + a.w > b.x &&
+                a.y < b.y + b.h &&
+                a.y + a.h > b.y
+            );
+        }
+
+        function updateGame() {
+            animTick++;
+
+            // Horizontal movement
+            if (keys.left) {
+                maya.vx = -maya.speed;
+                maya.facing = -1;
+            } else if (keys.right) {
+                maya.vx = maya.speed;
+                maya.facing = 1;
+            } else {
+                maya.vx *= 0.78;
+                if (Math.abs(maya.vx) < 0.1) maya.vx = 0;
+            }
+
+            maya.x += maya.vx;
+            maya.x = Math.max(12, Math.min(WORLD_W - maya.w - 12, maya.x));
+
+            // Vertical movement & gravity
+            const prevBottom = maya.y + maya.h;
+            maya.vy += 0.56; // Gravity
+            maya.y += maya.vy;
+            maya.onGround = false;
+
+            // Platform landing check
+            if (maya.vy >= 0) {
+                for (const plat of platforms) {
+                    if (
+                        maya.x + maya.w > plat.x + 6 &&
+                        maya.x < plat.x + plat.w - 6 &&
+                        prevBottom <= plat.y + 8 &&
+                        maya.y + maya.h >= plat.y
+                    ) {
+                        maya.y = plat.y - maya.h;
+                        maya.vy = 0;
+                        maya.onGround = true;
+                    }
+                }
+            }
+
+            // Ground landing check
+            if (maya.y + maya.h >= GROUND_Y) {
+                maya.y = GROUND_Y - maya.h;
+                maya.vy = 0;
+                maya.onGround = true;
+            }
+
+            if (maya.invulnerableTimer > 0) maya.invulnerableTimer--;
+
+            // Update Stage Objects (Traps & Living Target)
+            for (const obj of stageObjects) {
+                if (obj.collected) continue;
+
+                if (obj.vx !== 0) {
+                    obj.x += obj.vx;
+                    if (obj.x < obj.minX || obj.x > obj.maxX) {
+                        obj.vx *= -1;
+                    }
+                }
+
+                // Check collision with Maya
+                if (rectsOverlap(maya, obj)) {
+                    if (obj.type === 'living' && phase === 1 && !maya.carrying) {
+                        obj.collected = true;
+                        maya.carrying = obj;
+                        playSfx('pickup');
+                        score += 20;
+                        learningAnalytics.correctObjectsPicked++;
+                        document.getElementById('score-display').innerText = `⭐ ${score}`;
+                        document.getElementById('carry-status').innerText = `Membawa: ${obj.emoji} ${obj.name}`;
+                        spawnParticles(obj.x + 20, obj.y + 20, '#34d399', 16);
+
+                        recordEvidence(true, `Mengenal pasti ${obj.name} (${obj.category}) sebagai Benda Hidup.`);
+                        showMayaDialog(
+                            "Tepat Sekali!",
+                            `Maya ambil ${obj.name} (${obj.category}). Sekarang bawa ke Mesin Masa di sebelah kanan!`,
+                            obj.emoji,
+                            true,
+                            3500
+                        );
+                    } else if (obj.type === 'trap' && maya.invulnerableTimer === 0) {
+                        maya.invulnerableTimer = 75;
+                        maya.vy = -6.5;
+                        lives = Math.max(1, lives - 1);
+                        renderHearts();
+                        playSfx('wrong');
+                        learningAnalytics.trapObjectsTouched++;
+                        spawnParticles(obj.x + 20, obj.y + 20, '#f43f5e', 16);
+
+                        recordEvidence(false, `Tersentuh perangkap miskonsepsi "${obj.name}" — diterangkan mengapa ia BUKAN benda hidup.`);
+                        showMayaDialog(
+                            `Aduh! ${obj.name} Bukan Benda Hidup!`,
+                            obj.reason,
+                            "⚠️",
+                            false,
+                            5200
+                        );
+                    }
+                }
+            }
+
+            // Phase 1 -> Phase 2 Check: Delivering Living Object to Time Machine
+            if (phase === 1 && maya.carrying && rectsOverlap(maya, timeMachine)) {
+                timeMachine.loadedObject = maya.carrying;
+                maya.carrying = null;
+                document.getElementById('carry-status').innerText = "Di dalam Mesin Masa! Kutip Ciri Hidup!";
+                playSfx('pickup');
+                score += 25;
+                document.getElementById('score-display').innerText = `⭐ ${score}`;
+                startPhase2();
+            }
+
+            // Phase 2: Collecting SP 3.1.1 Trait Bubbles
+            if (phase === 2) {
+                for (const b of traitBubbles) {
+                    if (b.collected) continue;
+                    b.y = b.baseY + Math.sin(animTick * 0.06 + b.phaseOffset) * 8;
+
+                    const dx = (maya.x + maya.w / 2) - b.x;
+                    const dy = (maya.y + maya.h / 2) - b.y;
+                    const dist = Math.hypot(dx, dy);
+
+                    if (dist < b.r + 24) {
+                        if (b.isCorrect) {
+                            b.collected = true;
+                            playSfx('pickup');
+                            score += 15;
+                            learningAnalytics.correctTraitsCollected++;
+                            document.getElementById('score-display').innerText = `⭐ ${score}`;
+                            spawnParticles(b.x, b.y, '#38bdf8', 15);
+                            updateTraitsChecklistUI();
+
+                            recordEvidence(true, `Memilih ciri SP 3.1.1 yang betul: "${b.label}" untuk ${timeMachine.loadedObject.name}.`);
+
+                            // Check if all required traits are collected
+                            const remaining = traitBubbles.filter(t => t.isCorrect && !t.collected);
+                            if (remaining.length === 0) {
+                                startPhase3();
+                            }
+                        } else if (maya.invulnerableTimer === 0) {
+                            maya.invulnerableTimer = 60;
+                            maya.vy = -5;
+                            playSfx('wrong');
+                            learningAnalytics.wrongTraitsCollected++;
+                            spawnParticles(b.x, b.y, '#f43f5e', 14);
+
+                            recordEvidence(false, `Tersalah pilih gelembung "${b.label}" — dibetulkan bahawa benda hidup tidak perlukan ${b.label}.`);
+                            showMayaDialog(
+                                `Ops! ${b.label} Bukan Ciri Benda Hidup!`,
+                                b.reason,
+                                "🚫",
+                                false,
+                                4200
+                            );
+                        }
+                    }
+                }
+            }
+
+            // Phase 3: Reaching the High Exit Door
+            if (phase === 3 && rectsOverlap(maya, exitDoor)) {
+                completeCurrentStage();
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        /* =========================================================================
+           7. LUKISAN VISUAL 2D (CANVAS RENDERING)
+           ========================================================================= */
+        function drawRoundedRect(x, y, w, h, r, fill, stroke = null, lineWidth = 2) {
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, r);
+            if (fill) {
+                ctx.fillStyle = fill;
+                ctx.fill();
+            }
+            if (stroke) {
+                ctx.strokeStyle = stroke;
+                ctx.lineWidth = lineWidth;
+                ctx.stroke();
+            }
+        }
+
+        function drawSchoolBackground(st) {
+            // Sky / Wall gradient
+            const grad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+            grad.addColorStop(0, st.themeTop);
+            grad.addColorStop(1, st.themeBottom);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, WORLD_W, GROUND_Y);
+
+            if (currentStageIdx === 0) {
+                // Stage 1: School Classroom & Corridor windows
+                drawRoundedRect(60, 70, 150, 110, 12, "#f8fafc", "#64748b", 4);
+                drawRoundedRect(260, 70, 190, 110, 12, "#1e293b", "#94a3b8", 5); // Blackboard
+                ctx.fillStyle = "#e2e8f0";
+                ctx.font = "bold 14px Fredoka";
+                ctx.fillText("SAINS TAHUN 1", 305, 105);
+                ctx.font = "12px Nunito";
+                ctx.fillText("Manusia, Haiwan, Tumbuhan", 278, 130);
+                ctx.fillText("= BENDA HIDUP!", 310, 150);
+            } else {
+                // Outdoor clouds & sun for Stage 2 & 3
+                ctx.fillStyle = "#fde047";
+                ctx.beginPath();
+                ctx.arc(110, 75, 34, 0, Math.PI * 2);
+                ctx.fill();
+
+                // School building silhouette in background
+                drawRoundedRect(60, 210, 220, 185, 8, "#fef3c7", "#d97706", 3);
+                drawRoundedRect(85, 180, 170, 35, 6, "#ef4444", "#b91c1c", 2);
+                ctx.fillStyle = "#78350f";
+                ctx.font = "bold 12px Fredoka";
+                ctx.fillText("SEKOLAH KEBANGSAAN", 102, 202);
+            }
+
+            // Ground Floor
+            ctx.fillStyle = st.floorColor;
+            ctx.fillRect(0, GROUND_Y, WORLD_W, WORLD_H - GROUND_Y);
+            ctx.fillStyle = "rgba(0,0,0,0.15)";
+            ctx.fillRect(0, GROUND_Y, WORLD_W, 8);
+        }
+
+        function drawTimeMachine(st) {
+            const tm = timeMachine;
+            // Base & Capsule
+            drawRoundedRect(tm.x, tm.y, tm.w, tm.h, 18, "rgba(56, 189, 248, 0.28)", "#0284c7", 4);
+            drawRoundedRect(tm.x - 8, tm.y + tm.h - 18, tm.w + 16, 18, 8, "#334155", "#0f172a", 3);
+            drawRoundedRect(tm.x - 6, tm.y - 14, tm.w + 12, 20, 10, "#f59e0b", "#b45309", 3);
+
+            ctx.fillStyle = "#0f172a";
+            ctx.font = "bold 11px Fredoka";
+            ctx.textAlign = "center";
+            ctx.fillText("MESIN MASA", tm.x + tm.w / 2, tm.y);
+
+            // Object inside Time Machine
+            if (tm.loadedObject && !tm.transformed) {
+                ctx.font = "36px serif";
+                ctx.fillText(tm.loadedObject.emoji, tm.x + tm.w / 2, tm.y + 72);
+            } else if (tm.transformed) {
+                // Draw grown & multiplied living thing!
+                ctx.font = "34px serif";
+                ctx.fillText(st.targetLiving.grownEmoji, tm.x + tm.w / 2, tm.y + 68);
+                ctx.fillStyle = "#065f46";
+                ctx.font = "bold 11px Nunito";
+                ctx.fillText("MEMBESAR & MEMBIAK!", tm.x + tm.w / 2, tm.y - 22);
+            } else {
+                ctx.fillStyle = "#0369a1";
+                ctx.font = "bold 11px Nunito";
+                ctx.fillText("Letak Benda", tm.x + tm.w / 2, tm.y + 52);
+                ctx.fillText("Hidup Di Sini", tm.x + tm.w / 2, tm.y + 68);
+            }
+            ctx.textAlign = "left";
+        }
+
+        function drawExitDoor() {
+            const unlocked = phase === 3;
+            drawRoundedRect(
+                exitDoor.x,
+                exitDoor.y,
+                exitDoor.w,
+                exitDoor.h,
+                14,
+                unlocked ? "#10b981" : "#64748b",
+                unlocked ? "#047857" : "#334155",
+                4
+            );
+            ctx.textAlign = "center";
+            ctx.font = "28px serif";
+            ctx.fillText(unlocked ? "🚪✨" : "🔒", exitDoor.x + exitDoor.w / 2, exitDoor.y + 44);
+            ctx.fillStyle = "#0f172a";
+            ctx.font = "bold 11px Fredoka";
+            ctx.fillText(unlocked ? "PINTU TAHAP" : "TERKUNCI", exitDoor.x + exitDoor.w / 2, exitDoor.y - 6);
+            ctx.textAlign = "left";
+        }
+
+        function drawMaya() {
+            ctx.save();
+            if (maya.invulnerableTimer > 0 && Math.floor(maya.invulnerableTimer / 5) % 2 === 0) {
+                ctx.globalAlpha = 0.45;
+            }
+
+            const cx = maya.x + maya.w / 2;
+            const cy = maya.y + maya.h / 2;
+
+            // Shadow
+            ctx.fillStyle = "rgba(0,0,0,0.2)";
+            ctx.beginPath();
+            ctx.ellipse(cx, maya.y + maya.h, 18, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Cute Backpack
+            drawRoundedRect(
+                maya.facing === 1 ? maya.x + 2 : maya.x + maya.w - 14,
+                maya.y + 22,
+                12,
+                22,
+                5,
+                "#f59e0b",
+                "#b45309",
+                2
+            );
+
+            // Body / Pink Jacket
+            drawRoundedRect(maya.x + 9, maya.y + 24, 26, 22, 8, "#ec4899", "#9d174d", 2);
+
+            // Legs (animated when moving)
+            const legSwing = Math.abs(maya.vx) > 0.2 ? Math.sin(animTick * 0.35) * 5 : 0;
+            drawRoundedRect(maya.x + 12, maya.y + 44, 8, 12 + legSwing * 0.3, 3, "#1e3a8a");
+            drawRoundedRect(maya.x + 24, maya.y + 44, 8, 12 - legSwing * 0.3, 3, "#1e3a8a");
+
+            // Cute Head & Ponytail
+            ctx.fillStyle = "#451a03";
+            ctx.beginPath();
+            ctx.arc(maya.facing === 1 ? maya.x + 8 : maya.x + maya.w - 8, maya.y + 12, 9, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "#fde68a";
+            ctx.beginPath();
+            ctx.arc(cx, maya.y + 14, 14, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#78350f";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Hair bangs
+            ctx.fillStyle = "#451a03";
+            ctx.beginPath();
+            ctx.arc(cx, maya.y + 10, 14, Math.PI, Math.PI * 2);
+            ctx.fill();
+
+            // Eyes & Smile
+            const eyeOffsetX = maya.facing * 4;
+            ctx.fillStyle = "#0f172a";
+            ctx.beginPath();
+            ctx.arc(cx - 4 + eyeOffsetX, maya.y + 15, 2.2, 0, Math.PI * 2);
+            ctx.arc(cx + 4 + eyeOffsetX, maya.y + 15, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Label "Maya (Manusia)"
+            ctx.fillStyle = "#0f172a";
+            ctx.font = "bold 10px Nunito";
+            ctx.textAlign = "center";
+            ctx.fillText("Maya (Manusia)", cx, maya.y - 6);
+
+            // Carried living item above Maya
+            if (maya.carrying) {
+                ctx.font = "28px serif";
+                ctx.fillText(maya.carrying.emoji, cx, maya.y - 18);
+            }
+
+            ctx.restore();
+            ctx.textAlign = "left";
+        }
+
+        function drawGame() {
+            ctx.clearRect(0, 0, WORLD_W, WORLD_H);
+            const st = STAGES[currentStageIdx];
+
+            drawSchoolBackground(st);
+
+            // Draw platforms
+            for (const plat of platforms) {
+                const fill = plat.isGrownBridge ? "#16a34a" : "#f59e0b";
+                const stroke = plat.isGrownBridge ? "#14532d" : "#78350f";
+                drawRoundedRect(plat.x, plat.y, plat.w, plat.h, 8, fill, stroke, 2.5);
+                if (plat.label) {
+                    ctx.fillStyle = "#ffffff";
+                    ctx.font = "bold 10px Nunito";
+                    ctx.textAlign = "center";
+                    ctx.fillText(plat.label, plat.x + plat.w / 2, plat.y + 12);
+                    ctx.textAlign = "left";
+                }
+            }
+
+            drawExitDoor();
+            drawTimeMachine(st);
+
+            // Draw Stage Objects (Living Target & Misconception Traps)
+            for (const obj of stageObjects) {
+                if (obj.collected) continue;
+                const cx = obj.x + obj.w / 2;
+                const cy = obj.y + obj.h / 2;
+
+                // Balloon pulsing illusion in Stage 3
+                let scale = 1;
+                if (obj.isBalloon) {
+                    scale = 1 + Math.sin(animTick * 0.08) * 0.22;
+                }
+
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.scale(scale, scale);
+
+                // Background badge for clarity
+                drawRoundedRect(-24, -24, 48, 48, 12, "rgba(255,255,255,0.85)", "#475569", 2);
+                ctx.font = "30px serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(obj.emoji, 0, 2);
+                ctx.restore();
+
+                // Object Name Tag
+                ctx.fillStyle = "#0f172a";
+                ctx.font = "bold 11px Nunito";
+                ctx.textAlign = "center";
+                ctx.fillText(obj.name, cx, obj.y - 6);
+                ctx.textAlign = "left";
+            }
+
+            // Draw Phase 2 Trait Bubbles
+            if (phase === 2) {
+                for (const b of traitBubbles) {
+                    if (b.collected) continue;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
+                    ctx.fill();
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = "#0284c7";
+                    ctx.stroke();
+
+                    ctx.font = "22px serif";
+                    ctx.textAlign = "center";
+                    ctx.fillText(b.emoji, b.x, b.y + 6);
+
+                    // Trait text pill below bubble
+                    drawRoundedRect(b.x - 54, b.y + b.r + 3, 108, 18, 6, "#0f172a");
+                    ctx.fillStyle = "#f8fafc";
+                    ctx.font = "bold 10px Nunito";
+                    ctx.fillText(b.label, b.x, b.y + b.r + 15);
+                    ctx.restore();
+                }
+            }
+
+            drawMaya();
+
+            // Draw Particles
+            for (const p of particles) {
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        /* =========================================================================
+           8. INPUT PENGGUNA (PAPAN KEKUNCI & SENTUHAN SKRIN)
+           ========================================================================= */
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+            if (e.code === 'ArrowUp' || e.code === 'Space' || e.code === 'KeyW') {
+                e.preventDefault();
+                triggerJump();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+        });
+
+        function bindButtonHold(btnId, onDown, onUp) {
+            const btn = document.getElementById(btnId);
+            const start = (e) => { e.preventDefault(); onDown(); };
+            const end = (e) => { e.preventDefault(); if (onUp) onUp(); };
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('mouseup', end);
+            btn.addEventListener('mouseleave', end);
+            btn.addEventListener('touchstart', start, { passive: false });
+            btn.addEventListener('touchend', end, { passive: false });
+        }
+
+        bindButtonHold('btn-left', () => keys.left = true, () => keys.left = false);
+        bindButtonHold('btn-right', () => keys.right = true, () => keys.right = false);
+        bindButtonHold('btn-jump', () => triggerJump(), null);
+
+        function resizeCanvas() {
+            canvas.width = WORLD_W;
+            canvas.height = WORLD_H;
+        }
+
+        function gameLoop() {
+            updateGame();
+            drawGame();
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = function () {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            loadStage(0);
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
